@@ -1,28 +1,28 @@
-# wrapBuddy
+# wrap-buddy
 
-![wrapBuddy logo](https://github.com/Mic92/wrap-buddy/releases/download/assets/wrap-the-elf.png)
+![wrap-buddy logo](https://github.com/Mic92/wrap-buddy/releases/download/assets/wrap-the-elf.png)
 
 *"The best way to spread Christmas cheer is wrapping ELFs for all to hear!"*
 — Buddy, probably
 
-wrapBuddy is your enthusiastic helper for getting stubborn ELF binaries to run
+wrap-buddy is your enthusiastic helper for getting stubborn ELF binaries to run
 on NixOS. Just like Buddy the Elf bringing holiday magic to New York City,
-wrapBuddy brings NixOS compatibility to binaries that refuse to cooperate.
+wrap-buddy brings NixOS compatibility to binaries that refuse to cooperate.
 
-## Why wrapBuddy instead of autoPatchelfHook?
+## Why wrap-buddy instead of autoPatchelfHook?
 
 autoPatchelfHook rewrites ELF headers (interpreter path, RPATH) which can be
 error-prone and may break binaries that, have unusual ELF layouts.
 
-wrapBuddy takes a different approach: it patches the entry point to load a stub
+wrap-buddy takes a different approach: it patches the entry point to load a stub
 that sets up the environment, then restores the original code before running.
 The ELF headers remain mostly untouched (only PT_INTERP → PT_NULL).
 
-Use wrapBuddy when autoPatchelfHook fails or breaks the binary.
+Use wrap-buddy when autoPatchelfHook fails or breaks the binary.
 
 ## How it works
 
-wrapBuddy uses a two-stage loader architecture:
+wrap-buddy uses a two-stage loader architecture:
 
 1. **Stub** (~350 bytes): Written to the binary's entry point at build time.
    Loads the external loader and jumps to it.
@@ -93,7 +93,7 @@ stdenv.mkDerivation {
 
 ## How Dependencies Work
 
-wrapBuddy scans each binary's `DT_NEEDED` entries (like `autoPatchelfHook`)
+wrap-buddy scans each binary's `DT_NEEDED` entries (like `autoPatchelfHook`)
 and resolves them against `/lib` directories from `buildInputs`. If any
 dependency is missing, the build fails with an error listing what's needed.
 
@@ -141,7 +141,7 @@ The loader prints debug info to stderr if it fails to load.
 
 ## Building from source
 
-wrapBuddy builds two components:
+wrap-buddy builds two components:
 
 - `loader.bin`: Flat binary loaded at runtime by patched binaries
 - `wrap-buddy`: C++ patcher tool (with stub code embedded)
