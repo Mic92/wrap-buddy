@@ -91,6 +91,10 @@ let
       inherit wrapBuddy;
       tests = {
         clang-tidy = callPackage ./clang-tidy.nix { sourceFiles = sources; };
+        # Build patcher with ASan/UBSan to catch memory errors and undefined behavior
+        test-sanitizers = wrapBuddy.overrideAttrs (old: {
+          EXTRA_CXXFLAGS = "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all";
+        });
       }
       // lib.optionalAttrs stdenv.hostPlatform.isx86_64 {
         # Test 32-bit patching by building wrapBuddy with i686 stdenv
