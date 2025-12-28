@@ -6,21 +6,21 @@
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-    printf("Hello from patched binary!\n");
+  printf("Hello from patched binary!\n");
 
-    // Check /proc/self/exe
-    char buf[1024];
-    ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
-    if (len > 0) {
-        buf[len] = '\0';
-        printf("/proc/self/exe = %s\n", buf);
-    }
+  // Check /proc/self/exe
+  char buf[1024];
+  ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+  if (len > 0) {
+    buf[len] = '\0';
+    printf("/proc/self/exe = %s\n", buf);
+  }
 
-    // Check LD_LIBRARY_PATH - should be restored to original or unset
-    const char *ldpath = getenv("LD_LIBRARY_PATH");
-    printf("LD_LIBRARY_PATH = %s\n", ldpath ? ldpath : "(unset)");
+  // Check LD_LIBRARY_PATH - should be restored to original or unset
+  const char *ldpath = getenv("LD_LIBRARY_PATH");
+  printf("LD_LIBRARY_PATH = %s\n", ldpath ? ldpath : "(unset)");
 
-    return 0;
+  return 0;
 }
 
 // Reserve space in .text section for the stub

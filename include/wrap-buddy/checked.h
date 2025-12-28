@@ -39,9 +39,9 @@ template <typename T>
 }
 
 // Checked substr - returns empty view on out-of-bounds
-[[nodiscard]] constexpr auto substr_checked(std::string_view sv, size_t pos,
-                                            size_t count = std::string_view::npos)
-    -> std::string_view {
+[[nodiscard]] constexpr auto
+substr_checked(std::string_view sv, size_t pos,
+               size_t count = std::string_view::npos) -> std::string_view {
   if (pos > sv.size()) {
     return {};
   }
