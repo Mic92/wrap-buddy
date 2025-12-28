@@ -9,6 +9,7 @@
   xxd,
   strace,
   pkgsi686Linux,
+  llvmPackages,
   sources,
 }:
 
@@ -95,6 +96,29 @@ let
         test-sanitizers = wrapBuddy.overrideAttrs (old: {
           EXTRA_CXXFLAGS = "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all";
         });
+        # Build with libc++ to catch libstdc++-specific assumptions
+        test-libcxx = (
+          llvmPackages.libcxxStdenv.mkDerivation {
+            inherit (wrapBuddy)
+              pname
+              version
+              src
+              nativeBuildInputs
+              meta
+              ;
+            depsBuildBuild = [ llvmPackages.libcxxStdenv.cc ];
+            makeFlags = [
+              "CXX_FOR_BUILD=${llvmPackages.libcxxStdenv.cc}/bin/c++"
+              "BINDIR=$(out)/bin"
+              "LIBDIR=$(out)/lib/wrap-buddy"
+              "INTERP=${dynamicLinker}"
+            ]
+            ++ lib.optional (libcLib != null) "LIBC_LIB=${libcLib}";
+            nativeInstallCheckInputs = [ strace ];
+            doInstallCheck = true;
+            installCheckTarget = "check";
+          }
+        );
       }
       // lib.optionalAttrs stdenv.hostPlatform.isx86_64 {
         # Test 32-bit patching by building wrapBuddy with i686 stdenv
