@@ -125,7 +125,7 @@ For each patched binary `<name>`, the hook creates:
 
 ## Limitations
 
-- Linux only (x86_64 and aarch64)
+- Linux only (x86_64, i386, and aarch64)
 - Requires space at entry point for stub
 - Binary must be writable during fixup phase
 
