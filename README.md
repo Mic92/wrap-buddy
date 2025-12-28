@@ -55,6 +55,22 @@ processes inherit a clean environment.
 
 ## Usage
 
+Add wrap-buddy as a flake input:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    wrap-buddy = {
+      url = "github:Mic92/wrap-buddy";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+}
+```
+
+Then use the `wrapBuddy` hook in your derivation:
+
 ```nix
 { stdenv, wrapBuddy, gcc-unwrapped, ... }:
 
