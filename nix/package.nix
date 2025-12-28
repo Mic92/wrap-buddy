@@ -37,7 +37,7 @@ let
   # - wrap-buddy C++ patcher with embedded stubs
   wrapBuddy = stdenv.mkDerivation {
     pname = "wrap-buddy";
-    version = "0.4.0";
+    version = "1.0.0";
 
     src = sources;
 
