@@ -48,16 +48,22 @@
             wrapBuddy = pkgs.callPackage ./nix/package.nix { inherit sources; };
           };
 
-          checks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (
-            {
-              clang-tidy = pkgs.callPackage ./nix/clang-tidy.nix {
-                sourceFiles = sources;
-              };
-            }
-            // lib.optionalAttrs pkgs.stdenv.hostPlatform.isx86_64 {
-              test-32bit = pkgs.pkgsi686Linux.callPackage ./nix/package.nix { inherit sources; };
-            }
-          );
+          checks =
+            let
+              packages = lib.mapAttrs' (n: lib.nameValuePair "package-${n}") config.packages;
+              devShells = lib.mapAttrs' (n: lib.nameValuePair "devShell-${n}") config.devShells;
+              linuxChecks = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (
+                {
+                  clang-tidy = pkgs.callPackage ./nix/clang-tidy.nix {
+                    sourceFiles = sources;
+                  };
+                }
+                // lib.optionalAttrs pkgs.stdenv.hostPlatform.isx86_64 {
+                  test-32bit = pkgs.pkgsi686Linux.callPackage ./nix/package.nix { inherit sources; };
+                }
+              );
+            in
+            packages // devShells // linuxChecks;
 
           treefmt = {
             projectRootFile = "flake.nix";
