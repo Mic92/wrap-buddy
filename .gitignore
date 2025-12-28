@@ -1,0 +1,17 @@
+# Build artifacts
+*.o
+*.elf
+*.bin
+wrap-buddy
+compile_commands.json
+
+# Generated stub headers
+src/patcher/stub_*.h
+
+# Editor/IDE
+.cache/
+.vscode/
+
+# Nix
+result
+result-*
