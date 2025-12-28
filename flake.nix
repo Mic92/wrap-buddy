@@ -57,6 +57,7 @@
                   clang-tidy = pkgs.callPackage ./nix/clang-tidy.nix {
                     sourceFiles = sources;
                   };
+                  test-sanitizers = config.packages.wrapBuddy.passthru.tests.test-sanitizers;
                 }
                 // lib.optionalAttrs pkgs.stdenv.hostPlatform.isx86_64 {
                   test-32bit = pkgs.pkgsi686Linux.callPackage ./nix/package.nix { inherit sources; };
