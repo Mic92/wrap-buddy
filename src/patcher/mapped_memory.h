@@ -89,13 +89,13 @@ public:
   auto operator=(const MappedMemory &) -> MappedMemory & = delete;
 
   // Factory for read-only mapping
-  static auto open_readonly(const fs::path &path)
+  [[nodiscard]] static auto open_readonly(const fs::path &path)
       -> std::expected<MappedMemory, std::string> {
     return open_impl(path, false);
   }
 
   // Factory for read-write mapping (in-place file modification)
-  static auto open_readwrite(const fs::path &path)
+  [[nodiscard]] static auto open_readwrite(const fs::path &path)
       -> std::expected<MappedMemory, std::string> {
     return open_impl(path, true);
   }
