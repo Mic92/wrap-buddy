@@ -434,6 +434,8 @@ static uintptr_t auxv_get(ElfW(auxv_t) * auxv, uintptr_t type) {
  * Main loader entry point
  * Called by stub with original stack pointer in first argument
  */
+// NOLINTNEXTLINE(misc-use-internal-linkage): referenced from inline asm in
+// _start
 __attribute__((noreturn)) void loader_main(intptr_t *stack_ptr) {
   /* Map config file */
   char config_path[MAX_PATH];
