@@ -1,18 +1,18 @@
 {
   lib,
-  llvmPackages_latest,
+  llvmPackages,
   binutils,
   xxd,
   jq,
   sourceFiles,
 }:
 
-llvmPackages_latest.libcxxStdenv.mkDerivation {
+llvmPackages.libcxxStdenv.mkDerivation {
   name = "wrap-buddy-clang-tidy";
   src = sourceFiles;
 
   nativeBuildInputs = [
-    llvmPackages_latest.clang-tools
+    llvmPackages.clang-tools
     binutils
     jq
     xxd

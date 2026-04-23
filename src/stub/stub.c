@@ -18,6 +18,8 @@
 /* Mark as used to prevent optimization when referenced only via inline asm */
 static const char loader_path[] __attribute__((used)) = LOADER_PATH;
 
+// NOLINTNEXTLINE(misc-use-internal-linkage): referenced from inline asm in
+// _start
 __attribute__((noreturn)) void stub_main(const intptr_t *const stack_ptr) {
   /* Get loader path using PC-relative addressing */
   const char *path;
