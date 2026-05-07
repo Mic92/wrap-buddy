@@ -59,6 +59,8 @@
                   };
                   test-sanitizers = config.packages.wrapBuddy.passthru.tests.test-sanitizers;
                   test-libcxx = config.packages.wrapBuddy.passthru.tests.test-libcxx;
+                  test-no-default-interp-and-libc =
+                    config.packages.wrapBuddy.passthru.tests.test-no-default-interp-and-libc;
                 }
                 // lib.optionalAttrs pkgs.stdenv.hostPlatform.isx86_64 {
                   test-32bit = pkgs.pkgsi686Linux.callPackage ./nix/package.nix { inherit sources; };
