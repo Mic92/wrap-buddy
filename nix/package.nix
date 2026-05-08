@@ -11,6 +11,7 @@
   pkgsi686Linux,
   llvmPackages,
   sources,
+  withDefaultInterpAndLibc ? true,
 }:
 
 let
@@ -24,6 +25,11 @@ let
   # - CXX_FOR_BUILD builds wrap-buddy for BUILD platform (what runs the patcher)
   # For native builds, these are the same compiler.
   cxxForBuild = "${buildPackages.stdenv.cc}/bin/c++";
+
+  defaultInterpAndLibcFlags = [
+    "INTERP=${dynamicLinker}"
+    "LIBC_LIB=${libcLib}"
+  ];
 
   # Single derivation builds everything:
   # - loader.bin, stub.bin (and 32-bit variants on x86_64)
@@ -48,13 +54,13 @@ let
       "CXX_FOR_BUILD=${cxxForBuild}"
       "BINDIR=$(out)/bin"
       "LIBDIR=$(out)/lib/wrap-buddy"
-      "INTERP=${dynamicLinker}"
-      "LIBC_LIB=${libcLib}"
     ]
+    ++ lib.optionals withDefaultInterpAndLibc defaultInterpAndLibcFlags
     ++ lib.optional stdenv.hostPlatform.isx86_64 "BUILD_32BIT=1";
 
     nativeInstallCheckInputs = [ strace ];
     doInstallCheck = true;
+    installCheckFlags = defaultInterpAndLibcFlags;
     installCheckTarget = "check";
     enableParallelBuilding = true;
 
@@ -88,6 +94,10 @@ let
         test-sanitizers = wrapBuddy.overrideAttrs (old: {
           EXTRA_CXXFLAGS = "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all";
         });
+        test-no-default-interp-and-libc = callPackage ./package.nix {
+          withDefaultInterpAndLibc = false;
+          inherit sources;
+        };
         # Build with libc++ to catch libstdc++-specific assumptions
         test-libcxx = (
           llvmPackages.libcxxStdenv.mkDerivation {

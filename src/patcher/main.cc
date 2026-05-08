@@ -36,14 +36,14 @@
 #ifdef DEFAULT_INTERP
 constexpr bool kHasDefaultInterp = true;
 #else
-#define DEFAULT_INTERP nullptr
+#define DEFAULT_INTERP ""
 constexpr bool kHasDefaultInterp = false;
 #endif
 
 #ifdef DEFAULT_LIBC_LIB
 constexpr bool kHasDefaultLibcLib = true;
 #else
-#define DEFAULT_LIBC_LIB nullptr
+#define DEFAULT_LIBC_LIB ""
 constexpr bool kHasDefaultLibcLib = false;
 #endif
 
