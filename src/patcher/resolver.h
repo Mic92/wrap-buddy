@@ -33,6 +33,7 @@ struct InterpreterInfo {
 struct PatchConfig {
   std::vector<fs::path> runtime_deps;
   std::set<fs::path> all_lib_dirs;
+  std::vector<std::string> needed; // extra DT_NEEDED sonames
 };
 
 // Result types for explicit control flow
@@ -186,8 +187,8 @@ inline auto process_binary(const fs::path &binary_path,
 
   std::println("Patching: {}", binary_path.string());
 
-  auto patch_result =
-      patch_binary(binary_path, interp_info.path, rpath, dry_run);
+  auto patch_result = patch_binary(binary_path, interp_info.path, rpath,
+                                   dry_run, config.needed);
   if (!patch_result) {
     return std::unexpected(ProcessError{patch_result.error()});
   }

@@ -339,6 +339,19 @@ static size_t count_dyn_entries(ElfW(Dyn) * dyn) {
 }
 
 /*
+ * Count null-terminated strings in a null-separated buffer.
+ */
+static size_t count_needed(const char *buf, size_t len) {
+  size_t count = 0;
+  for (size_t idx = 0; idx < len; idx++) {
+    if (buf[idx] == '\0') {
+      count++;
+    }
+  }
+  return count;
+}
+
+/*
  * Set up RPATH by creating a new .dynamic section with DT_RUNPATH
  *
  * DT_RUNPATH stores an offset from DT_STRTAB, not an absolute address.
@@ -360,7 +373,8 @@ static size_t count_dyn_entries(ElfW(Dyn) * dyn) {
  * ld.so computes: (V + l_addr) + offset = rpath
  */
 static ElfW(Dyn) * setup_rpath(ElfW(Dyn) * orig_dyn, const char *rpath,
-                               uintptr_t l_addr, size_t *out_dyn_count) {
+                               uintptr_t l_addr, size_t *out_dyn_count,
+                               const char *needed_names, size_t needed_len) {
   /* Find DT_STRTAB - we need it to compute the offset */
   ElfW(Dyn) *strtab_entry = find_dyn_entry(orig_dyn, DT_STRTAB);
   if (!strtab_entry) {
@@ -373,7 +387,9 @@ static ElfW(Dyn) * setup_rpath(ElfW(Dyn) * orig_dyn, const char *rpath,
   /* Count original entries and check if DT_RUNPATH exists */
   size_t orig_count = count_dyn_entries(orig_dyn);
   ElfW(Dyn) *runpath_entry = find_dyn_entry(orig_dyn, DT_RUNPATH);
-  size_t new_count = runpath_entry ? orig_count : orig_count + 1;
+  size_t extra_needed =
+      needed_len > 0 ? count_needed(needed_names, needed_len) : 0;
+  size_t new_count = orig_count + (runpath_entry ? 0 : 1) + extra_needed;
 
   /* Allocate memory for new .dynamic section only (rpath is in config mmap) */
   size_t dyn_size = new_count * sizeof(ElfW(Dyn));
@@ -404,11 +420,36 @@ static ElfW(Dyn) * setup_rpath(ElfW(Dyn) * orig_dyn, const char *rpath,
     idx++;
   }
 
-  /* Add DT_NULL terminator */
+  /* Add extra DT_NEEDED entries.
+   * Each soname string lives in the mmap'd config file.  We compute
+   * its offset from DT_STRTAB so ld.so can resolve it.
+   * Iterate with bounded pointer to avoid reading past the buffer. */
+  if (extra_needed > 0) {
+    const char *pos = needed_names;
+    const char *end = needed_names + needed_len;
+    while (pos < end) {
+      /* Compute string length without reading past the buffer */
+      const char *nul = pos;
+      while (nul < end && *nul != '\0') {
+        nul++;
+      }
+      size_t slen = (size_t)(nul - pos);
+      if (slen == 0) {
+        pos++; /* skip empty entries (consecutive nulls) */
+        continue;
+      }
+      new_dyn[idx].d_tag = DT_NEEDED;
+      new_dyn[idx].d_un.d_val = (uintptr_t)pos - strtab_runtime;
+      idx++;
+      pos = nul < end ? nul + 1 : end;
+    }
+  }
+
+  /* idx may be less than new_count if the blob had empty entries */
   new_dyn[idx].d_tag = DT_NULL;
   new_dyn[idx].d_un.d_val = 0;
 
-  *out_dyn_count = new_count;
+  *out_dyn_count = idx + 1;
   return new_dyn;
 }
 
@@ -459,13 +500,14 @@ __attribute__((noreturn)) void loader_main(intptr_t *stack_ptr) {
   /* Validate config field sizes are sane (prevents overflow in sum) */
   // NOLINTNEXTLINE(clang-analyzer-core.UndefinedBinaryOperatorResult)
   if (cfg->interp_len > config_size || cfg->rpath_len > config_size ||
-      cfg->stub_size > config_size) {
+      cfg->stub_size > config_size || cfg->needed_len > config_size) {
     die("config truncated");
   }
 
   /* Now safe to sum - each component <= config_size, no overflow possible */
   size_t expected_size = CONFIG_HEADER_SIZE + (size_t)cfg->interp_len +
-                         (size_t)cfg->rpath_len + (size_t)cfg->stub_size;
+                         (size_t)cfg->rpath_len + (size_t)cfg->stub_size +
+                         (size_t)cfg->needed_len;
   if (expected_size > config_size) {
     die("config truncated");
   }
@@ -475,6 +517,8 @@ __attribute__((noreturn)) void loader_main(intptr_t *stack_ptr) {
   char *interp_path = config_data + CONFIG_HEADER_SIZE;
   char *rpath = interp_path + cfg->interp_len;
   char *orig_bytes = rpath + cfg->rpath_len;
+  char *needed_names = orig_bytes + cfg->stub_size;
+  size_t needed_len = cfg->needed_len;
 
   /* Verify strings are null-terminated (lengths include the null byte) */
   if (cfg->interp_len == 0 || interp_path[cfg->interp_len - 1] != '\0') {
@@ -534,7 +578,8 @@ __attribute__((noreturn)) void loader_main(intptr_t *stack_ptr) {
   }
 
   size_t new_dyn_count;
-  ElfW(Dyn) *new_dyn = setup_rpath(orig_dyn, rpath, l_addr, &new_dyn_count);
+  ElfW(Dyn) *new_dyn = setup_rpath(orig_dyn, rpath, l_addr, &new_dyn_count,
+                                   needed_names, needed_len);
 
   /* Load interpreter */
   void *interp_base = NULL;

@@ -28,6 +28,10 @@ addWrapBuddySearchPath() {
 # Use: runtimeDependencies = [ libsecret ];
 declare -a wrapBuddyRuntimeDeps
 
+# Extra DT_NEEDED sonames to inject at runtime
+# Use: wrapBuddyExtraNeeded = [ "libstdc++.so.6" ];
+declare -a wrapBuddyExtraNeeded
+
 addWrapBuddyRuntimeDeps() {
   local dep
   for dep in "$@"; do
@@ -75,7 +79,8 @@ wrapBuddy() {
     ${norecurse:+--no-recurse} \
     --paths "$@" \
     --libs "${wrapBuddyLibs[@]}" "${extraWrapBuddyLibs[@]}" \
-    ${wrapBuddyRuntimeDeps:+--runtime-dependencies "${wrapBuddyRuntimeDeps[@]}"}
+    ${wrapBuddyRuntimeDeps:+--runtime-dependencies "${wrapBuddyRuntimeDeps[@]}"} \
+    ${wrapBuddyExtraNeeded:+--needed "${wrapBuddyExtraNeeded[@]}"}
 }
 
 # Post-fixup hook to run automatically

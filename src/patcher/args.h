@@ -24,6 +24,7 @@ struct Args {
   std::vector<fs::path> libs;
   std::vector<fs::path> runtime_deps;
   std::vector<std::string> ignore_missing;
+  std::vector<std::string> needed; // extra DT_NEEDED sonames to inject
   std::optional<std::string> interpreter;
   bool recursive = true;
   bool dry_run = false;
@@ -42,6 +43,8 @@ inline auto usage(std::string_view progname) -> void {
   std::println(
       stderr,
       "                           Patterns for deps to ignore if missing");
+  std::println(stderr,
+               "  --needed SONAME...       Extra DT_NEEDED sonames to inject");
   std::println(stderr,
                "  --no-recurse             Don't recurse into subdirectories");
   std::println(stderr, "  --dry-run                Show what would be done");
@@ -81,6 +84,8 @@ inline auto parse_args(std::span<char *> argv_span)
       collect_args(args.runtime_deps);
     } else if (arg == "--ignore-missing") {
       collect_args(args.ignore_missing);
+    } else if (arg == "--needed") {
+      collect_args(args.needed);
     } else if (arg == "--no-recurse") {
       args.recursive = false;
     } else if (arg == "--dry-run") {

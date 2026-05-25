@@ -145,7 +145,9 @@ inline auto write_config_file(const fs::path &config_path, bool is_64bit,
                               uint64_t orig_entry, size_t padded_size,
                               const std::string &interp_path,
                               const std::string &rpath,
-                              std::span<const uint8_t> orig_bytes) -> Result<> {
+                              std::span<const uint8_t> orig_bytes,
+                              const std::vector<std::string> &needed = {})
+    -> Result<> {
   std::ofstream config(config_path, std::ios::binary);
   if (!config) {
     return std::unexpected(std::format(
@@ -156,23 +158,36 @@ inline auto write_config_file(const fs::path &config_path, bool is_64bit,
   auto interp_len = static_cast<uint16_t>(interp_path.size() + 1);
   auto rpath_len = static_cast<uint16_t>(rpath.size() + 1);
 
+  // Build null-separated blob of extra NEEDED sonames
+  std::string needed_blob;
+  for (const auto &name : needed) {
+    needed_blob += name;
+    needed_blob += '\0';
+  }
+  auto needed_len = static_cast<uint16_t>(needed_blob.size());
+
   if (is_64bit) {
     const Config64 hdr{.orig_entry = orig_entry,
                        .stub_size = padded_size,
                        .interp_len = interp_len,
-                       .rpath_len = rpath_len};
+                       .rpath_len = rpath_len,
+                       .needed_len = needed_len};
     write_struct(config, hdr);
   } else {
     const Config32 hdr{.orig_entry = static_cast<uint32_t>(orig_entry),
                        .stub_size = static_cast<uint32_t>(padded_size),
                        .interp_len = interp_len,
-                       .rpath_len = rpath_len};
+                       .rpath_len = rpath_len,
+                       .needed_len = needed_len};
     write_struct(config, hdr);
   }
 
   config.write(interp_path.c_str(), static_cast<std::streamsize>(interp_len));
   config.write(rpath.c_str(), static_cast<std::streamsize>(rpath_len));
   write_bytes(config, orig_bytes);
+  if (!needed_blob.empty()) {
+    config.write(needed_blob.data(), static_cast<std::streamsize>(needed_len));
+  }
 
   std::error_code perm_ec;
   fs::permissions(config_path,
@@ -188,7 +203,9 @@ inline auto write_config_file(const fs::path &config_path, bool is_64bit,
 
 inline auto patch_binary(const fs::path &binary_path,
                          const std::string &interp_path,
-                         const std::string &rpath, bool dry_run) -> Result<> {
+                         const std::string &rpath, bool dry_run,
+                         const std::vector<std::string> &needed = {})
+    -> Result<> {
   // Memory-map file for in-place modification
   auto mem_result = MappedMemory::open_readwrite(binary_path);
   if (!mem_result) {
@@ -277,8 +294,9 @@ inline auto patch_binary(const fs::path &binary_path,
   auto config_path = binary_path.parent_path() /
                      ("." + binary_path.filename().string() + ".wrapbuddy");
 
-  if (auto err = write_config_file(config_path, is_64bit, orig_entry,
-                                   padded_size, interp_path, rpath, orig_bytes);
+  if (auto err =
+          write_config_file(config_path, is_64bit, orig_entry, padded_size,
+                            interp_path, rpath, orig_bytes, needed);
       !err) {
     return std::unexpected(err.error());
   }
