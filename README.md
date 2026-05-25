@@ -104,6 +104,19 @@ use `runtimeDependencies` - these are added to RPATH unconditionally:
 runtimeDependencies = [ libayatana-appindicator ];
 ```
 
+Some binaries load native addons that need libraries the main executable
+doesn't link. If those addons can't be patched (e.g. embedded in a virtual
+filesystem), use `wrapBuddyExtraNeeded` to inject `DT_NEEDED` entries at
+runtime so ld.so loads the libraries at process start:
+
+```nix
+wrapBuddyExtraNeeded = [ "libstdc++.so.6" ];
+```
+
+Unlike `patchelf --add-needed`, this doesn't modify the binary on disk,
+so it works with binaries that have appended payloads (e.g. bun-compiled
+executables).
+
 You can also manually add library search paths:
 
 ```nix
@@ -112,9 +125,41 @@ postFixup = ''
 '';
 ```
 
+## CLI Reference
+
+```
+wrap-buddy [options]
+
+Options:
+  --paths PATH...              Paths to scan for executables
+  --libs PATH...               Library directories to search
+  --runtime-dependencies PATH...  Paths added to RPATH unconditionally
+  --ignore-missing PATTERN...  Patterns for deps to ignore if missing
+  --needed SONAME...           Extra DT_NEEDED sonames to inject
+  --no-recurse                 Don't recurse into subdirectories
+  --dry-run                    Show what would be done
+  --interpreter PATH           Path to dynamic linker
+  --help                       Show help
+```
+
+### Examples
+
+```bash
+# Patch all binaries under ./out, resolve libs from ./lib
+wrap-buddy --paths ./out --interpreter /lib64/ld-linux-x86-64.so.2 --libs ./lib
+
+# Inject libstdc++ as a runtime dependency without modifying the binary
+wrap-buddy --paths ./out/bin --interpreter /nix/store/.../ld-linux-x86-64.so.2 \
+  --libs /nix/store/.../lib --needed libstdc++.so.6
+
+# Dry run to see what would be patched
+wrap-buddy --paths ./out --interpreter /lib64/ld-linux-x86-64.so.2 \
+  --libs ./lib --dry-run
+```
+
 ## Requirements
 
-The binary must have sufficient space at the entry point for the stub (~350 bytes).
+The binary must have sufficient space at the entry point for the stub (~400 bytes).
 
 ## Files created
 
