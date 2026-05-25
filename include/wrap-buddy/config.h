@@ -31,14 +31,15 @@
  *   [interp_path]   - null-terminated interpreter path
  *   [rpath]         - null-terminated colon-separated library paths
  *   [orig_bytes]    - original bytes from entry point (to restore)
+ *   [needed_names]  - null-separated extra DT_NEEDED sonames (optional)
  *
  * 64-bit header:
- * orig_entry(8) + stub_size(8) + interp_len(2) + rpath_len(2)
- * = 20 bytes
+ * orig_entry(8) + stub_size(8) + interp_len(2) + rpath_len(2) + needed_len(2)
+ * = 22 bytes
  *
  * 32-bit header:
- * orig_entry(4) + stub_size(4) + interp_len(2) + rpath_len(2)
- * = 12 bytes
+ * orig_entry(4) + stub_size(4) + interp_len(2) + rpath_len(2) + needed_len(2)
+ * = 14 bytes
  */
 
 #ifdef __GNUC__
@@ -52,6 +53,8 @@ struct PACKED Config64 {
   uint64_t stub_size;
   uint16_t interp_len;
   uint16_t rpath_len;
+  uint16_t
+      needed_len; /* total bytes of null-separated extra DT_NEEDED sonames */
 };
 
 struct PACKED Config32 {
@@ -59,10 +62,11 @@ struct PACKED Config32 {
   uint32_t stub_size;
   uint16_t interp_len;
   uint16_t rpath_len;
+  uint16_t needed_len;
 };
 
-#define CONFIG64_HEADER_SIZE 20
-#define CONFIG32_HEADER_SIZE 12
+#define CONFIG64_HEADER_SIZE 22
+#define CONFIG32_HEADER_SIZE 14
 
 /*
  * For freestanding code: select config struct based on pointer size
