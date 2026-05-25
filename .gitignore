@@ -2,7 +2,7 @@
 *.o
 *.elf
 *.bin
-wrap-buddy
+/wrap-buddy
 compile_commands.json
 
 # Generated stub headers
