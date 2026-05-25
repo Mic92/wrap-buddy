@@ -120,9 +120,12 @@ auto run_patcher(const Args &args, const InterpreterInfo &interp_info) -> int {
   populate_cache(cache, args.libs, discovered_lib_dirs, false);
   populate_cache(cache, args.runtime_deps, discovered_lib_dirs, false);
 
-  const PatchConfig config{.runtime_deps = args.runtime_deps,
-                           .all_lib_dirs = discovered_lib_dirs,
-                           .needed = args.needed};
+  const PatchConfig config{
+      .runtime_deps = args.runtime_deps,
+      .all_lib_dirs = discovered_lib_dirs,
+      .needed = args.needed,
+      .relative_rpath = args.relative_rpath,
+  };
 
   std::vector<MissingDepsError> all_missing;
   std::vector<std::string> errors;

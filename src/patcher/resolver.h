@@ -34,6 +34,7 @@ struct PatchConfig {
   std::vector<fs::path> runtime_deps;
   std::set<fs::path> all_lib_dirs;
   std::vector<std::string> needed; // extra DT_NEEDED sonames
+  bool relative_rpath; // Use $ORIGIN and relative paths when building the rpath
 };
 
 // Result types for explicit control flow
@@ -68,12 +69,13 @@ inline auto resolve_dependency(const std::string &dep, const SonameCache &cache,
   return find_dependency(cache, dep, arch, osabi);
 }
 
-inline auto build_rpath(const std::set<fs::path> &library_dirs,
+inline auto build_rpath(const fs::path &binary_dir,
+                        const std::set<fs::path> &library_dirs,
                         const std::vector<fs::path> &runtime_deps,
                         const std::set<fs::path> &all_lib_dirs,
                         const std::optional<fs::path> &libc_lib,
-                        const std::vector<std::string> &existing_rpath)
-    -> std::string {
+                        const std::vector<std::string> &existing_rpath,
+                        bool relative_rpath) -> std::string {
   std::set<fs::path> combined = all_lib_dirs;
   combined.insert(library_dirs.begin(), library_dirs.end());
   std::error_code err_code;
@@ -94,18 +96,25 @@ inline auto build_rpath(const std::set<fs::path> &library_dirs,
   }
 
   std::string result;
-  for (const auto &dir : combined) {
+
+  auto append_path_entry = [&](const fs::path &p) {
     if (!result.empty()) {
       result += ':';
     }
-    result += dir.string();
+    if (relative_rpath) {
+      result += "$ORIGIN/";
+      result += fs::relative(p, binary_dir).string();
+    } else {
+      result += p.string();
+    }
+  };
+
+  for (const auto &dir : combined) {
+    append_path_entry(dir);
   }
 
   if (libc_lib) {
-    if (!result.empty()) {
-      result += ':';
-    }
-    result += libc_lib->string();
+    append_path_entry(*libc_lib);
   }
 
   return result;
@@ -181,9 +190,9 @@ inline auto process_binary(const fs::path &binary_path,
         MissingDepsError{.binary = binary_path, .deps = std::move(missing)}});
   }
 
-  auto rpath =
-      build_rpath(library_dirs, config.runtime_deps, config.all_lib_dirs,
-                  interp_info.libc_lib, existing_rpath);
+  auto rpath = build_rpath(binary_dir, library_dirs, config.runtime_deps,
+                           config.all_lib_dirs, interp_info.libc_lib,
+                           existing_rpath, config.relative_rpath);
 
   std::println("Patching: {}", binary_path.string());
 
