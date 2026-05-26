@@ -139,6 +139,7 @@ Options:
   --no-recurse                 Don't recurse into subdirectories
   --dry-run                    Show what would be done
   --interpreter PATH           Path to dynamic linker
+  --relative-rpath             Construct RUNPATH with $ORIGIN and relative paths for dependencies
   --help                       Show help
 ```
 

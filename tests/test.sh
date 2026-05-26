@@ -78,4 +78,17 @@ echo "$output" | grep -q "NEEDED_LOADED=yes" ||
   fail "injected DT_NEEDED library was not loaded"
 pass "--needed injection"
 
+# --- Test 3: --relative-rpath patching --------------------------------
+
+echo "=== Test: --relative-rpath ==="
+
+compile relative_rpath test_program.c
+
+"$WRAP_BUDDY" --paths "$TMPDIR/relative_rpath" --interpreter "$INTERP" --libs "$LIBS" --relative-rpath
+
+output=$("$TMPDIR/relative_rpath" 2>&1)
+echo "$output" | grep -q "Hello from patched binary!" ||
+  fail "patched binary did not produce expected output"
+pass "--relative-rpath patching"
+
 echo "=== All tests passed ==="

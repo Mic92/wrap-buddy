@@ -28,6 +28,7 @@ struct Args {
   std::optional<std::string> interpreter;
   bool recursive = true;
   bool dry_run = false;
+  bool relative_rpath = false;
 };
 
 inline auto usage(std::string_view progname) -> void {
@@ -49,6 +50,8 @@ inline auto usage(std::string_view progname) -> void {
                "  --no-recurse             Don't recurse into subdirectories");
   std::println(stderr, "  --dry-run                Show what would be done");
   std::println(stderr, "  --interpreter PATH       Path to dynamic linker");
+  std::println(stderr, "  --relative-rpath         Construct RUNPATH with "
+                       "$ORIGIN and relative paths for dependencies");
   std::println(stderr, "  --help                   Show this help");
 }
 
@@ -90,6 +93,8 @@ inline auto parse_args(std::span<char *> argv_span)
       args.recursive = false;
     } else if (arg == "--dry-run") {
       args.dry_run = true;
+    } else if (arg == "--relative-rpath") {
+      args.relative_rpath = true;
     } else if (arg == "--interpreter") {
       if (idx >= argv_span.size()) {
         return std::unexpected(
