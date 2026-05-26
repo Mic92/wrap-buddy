@@ -23,8 +23,9 @@ enum { MAX_PATH = 512 };
 /*
  * Build config path from /proc/self/exe
  * /path/to/binary -> /path/to/.binary.wrapbuddy
+ * Returns -1 on error, or the length of the config path otherwise.
  */
-static int build_config_path(char *buf, size_t bufsize) {
+static intptr_t build_config_path(char *buf, size_t bufsize) {
   intptr_t max_path_len = (intptr_t)bufsize - (1 + WRAPBUDDY_SUFFIX_LEN);
   if (max_path_len <= 0) {
     return -1;
@@ -53,7 +54,40 @@ static int build_config_path(char *buf, size_t bufsize) {
 
   /* Append ".wrapbuddy" */
   my_memcpy(buf + path_len, ".wrapbuddy", WRAPBUDDY_SUFFIX_LEN);
-  return 0;
+  return path_len + WRAPBUDDY_SUFFIX_LEN;
+}
+
+/*
+ * If the interpreter field in the config is a relative path, resolve it against
+ * the parent directory.
+ */
+static char *resolve_interpreter_path(char *buf, char *interp_path,
+                                      size_t bufsize, intptr_t path_len) {
+  /* Nothing to resolve, path is already absolute. */
+  if (interp_path[0] == '/') {
+    return interp_path;
+  }
+
+  intptr_t slash_pos = path_len - 1;
+  while (slash_pos >= 0 && buf[slash_pos] != '/') {
+    slash_pos--;
+  }
+
+  intptr_t name_start = slash_pos + 1;
+  /* -1 to account for the terminating NUL byte. */
+  size_t space_left_for_filename = (bufsize - 1) - name_start;
+  size_t interp_len = my_strlen(interp_path);
+
+  if (space_left_for_filename < interp_len) {
+    die("interpreter too long");
+  }
+
+  /* Append the relative path. Don't overcomplicate with path canonicalisation.
+   */
+  my_memcpy(buf + name_start, interp_path, interp_len);
+  buf[name_start + interp_len] = '\0';
+
+  return buf;
 }
 
 /*
@@ -479,13 +513,14 @@ static uintptr_t auxv_get(ElfW(auxv_t) * auxv, uintptr_t type) {
 // _start
 __attribute__((noreturn)) void loader_main(intptr_t *stack_ptr) {
   /* Map config file */
-  char config_path[MAX_PATH];
-  if (build_config_path(config_path, sizeof(config_path)) < 0) {
+  char path_buf[MAX_PATH];
+  intptr_t path_len = build_config_path(path_buf, sizeof(path_buf));
+  if (path_len < 0) {
     die("cannot build config path");
   }
 
   size_t config_size;
-  void *config_buf = map_config(config_path, &config_size);
+  void *config_buf = map_config(path_buf, &config_size);
   if (!config_buf) {
     die("cannot map config");
   }
@@ -580,6 +615,11 @@ __attribute__((noreturn)) void loader_main(intptr_t *stack_ptr) {
   size_t new_dyn_count;
   ElfW(Dyn) *new_dyn = setup_rpath(orig_dyn, rpath, l_addr, &new_dyn_count,
                                    needed_names, needed_len);
+
+  /* Resolve relative paths in the interpreter field against the executable
+     parent directory. */
+  interp_path = resolve_interpreter_path(path_buf, interp_path,
+                                         sizeof(path_buf), path_len);
 
   /* Load interpreter */
   void *interp_base = NULL;

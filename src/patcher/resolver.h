@@ -24,7 +24,7 @@ namespace wrap_buddy {
 namespace fs = std::filesystem;
 
 struct InterpreterInfo {
-  std::string path;
+  fs::path path;
   uint16_t arch = 0; // e_machine
   uint8_t osabi = 0; // EI_OSABI
   std::optional<fs::path> libc_lib;
@@ -34,7 +34,11 @@ struct PatchConfig {
   std::vector<fs::path> runtime_deps;
   std::set<fs::path> all_lib_dirs;
   std::vector<std::string> needed; // extra DT_NEEDED sonames
-  bool relative_rpath; // Use $ORIGIN and relative paths when building the rpath
+  bool relocatable; // Use $ORIGIN and relative paths when building the rpath
+                    // and resolve loader/interp with relative paths
+  fs::path loader_dir_path; // directory of loader.bin path for relocatable
+                            // mode, also useful to avoid using the compiled-in
+                            // default path
 };
 
 // Result types for explicit control flow
@@ -75,7 +79,7 @@ inline auto build_rpath(const fs::path &binary_dir,
                         const std::set<fs::path> &all_lib_dirs,
                         const std::optional<fs::path> &libc_lib,
                         const std::vector<std::string> &existing_rpath,
-                        bool relative_rpath) -> std::string {
+                        bool relocatable) -> std::string {
   std::set<fs::path> combined = all_lib_dirs;
   combined.insert(library_dirs.begin(), library_dirs.end());
   std::error_code err_code;
@@ -101,7 +105,7 @@ inline auto build_rpath(const fs::path &binary_dir,
     if (!result.empty()) {
       result += ':';
     }
-    if (relative_rpath) {
+    if (relocatable) {
       result += "$ORIGIN/";
       result += fs::relative(p, binary_dir).string();
     } else {
@@ -192,12 +196,25 @@ inline auto process_binary(const fs::path &binary_path,
 
   auto rpath = build_rpath(binary_dir, library_dirs, config.runtime_deps,
                            config.all_lib_dirs, interp_info.libc_lib,
-                           existing_rpath, config.relative_rpath);
+                           existing_rpath, config.relocatable);
 
   std::println("Patching: {}", binary_path.string());
 
-  auto patch_result = patch_binary(binary_path, interp_info.path, rpath,
-                                   dry_run, config.needed);
+  fs::path interp_path = interp_info.path;
+
+  if (config.relocatable) {
+    /* In relocatable mode, the interpreter path is relative and gets resolved
+       by the second-stage loader against the executable parent directory. */
+    interp_path = fs::relative(interp_info.path, binary_dir);
+  } else if (interp_info.path.is_relative()) {
+    /* Interpreter should be an absolute path otherwise. */
+    return std::unexpected(ProcessError{
+        "Interpreter path must be absolute in non-relocatable mode"});
+  }
+
+  auto patch_result =
+      patch_binary(binary_path, interp_path, rpath, dry_run, config.needed,
+                   config.relocatable, config.loader_dir_path);
   if (!patch_result) {
     return std::unexpected(ProcessError{patch_result.error()});
   }
@@ -207,7 +224,7 @@ inline auto process_binary(const fs::path &binary_path,
 }
 
 inline auto
-get_interpreter_info(const std::string &path,
+get_interpreter_info(const fs::path &path,
                      std::optional<fs::path> libc_lib = std::nullopt)
     -> std::expected<InterpreterInfo, std::string> {
   auto elf_result = ElfFile::open(path);

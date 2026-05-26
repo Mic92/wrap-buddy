@@ -139,7 +139,9 @@ Options:
   --no-recurse                 Don't recurse into subdirectories
   --dry-run                    Show what would be done
   --interpreter PATH           Path to dynamic linker
-  --relative-rpath             Construct RUNPATH with $ORIGIN and relative paths for dependencies
+  --relocatable                Produce relocatable binaries, resolve second-stage loader and interpreter relative to the executable directory.
+                               Construct RUNPATH with $ORIGIN and relative paths for dependencies
+  --loader-dir-path PATH       Path to directory containing loader.bin, uses the compiled-in LIBDIR by default
   --help                       Show help
 ```
 

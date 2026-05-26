@@ -26,9 +26,11 @@ struct Args {
   std::vector<std::string> ignore_missing;
   std::vector<std::string> needed; // extra DT_NEEDED sonames to inject
   std::optional<std::string> interpreter;
+  fs::path loader_dir_path =
+      LIBDIR; // use default installation prefix by default
   bool recursive = true;
   bool dry_run = false;
-  bool relative_rpath = false;
+  bool relocatable = false;
 };
 
 inline auto usage(std::string_view progname) -> void {
@@ -50,8 +52,14 @@ inline auto usage(std::string_view progname) -> void {
                "  --no-recurse             Don't recurse into subdirectories");
   std::println(stderr, "  --dry-run                Show what would be done");
   std::println(stderr, "  --interpreter PATH       Path to dynamic linker");
-  std::println(stderr, "  --relative-rpath         Construct RUNPATH with "
+  std::println(stderr, "  --relocatable            Produce relocatable "
+                       "binaries, resolve second-stage loader and interpreter "
+                       "relative to the executable directory\n"
+                       "                           Construct RUNPATH with "
                        "$ORIGIN and relative paths for dependencies");
+  std::println(stderr,
+               "  --loader-dir-path PATH   Path to directory containing "
+               "loader.bin, uses the compiled-in LIBDIR by default");
   std::println(stderr, "  --help                   Show this help");
 }
 
@@ -93,8 +101,15 @@ inline auto parse_args(std::span<char *> argv_span)
       args.recursive = false;
     } else if (arg == "--dry-run") {
       args.dry_run = true;
-    } else if (arg == "--relative-rpath") {
-      args.relative_rpath = true;
+    } else if (arg == "--relocatable") {
+      args.relocatable = true;
+    } else if (arg == "--loader-dir-path") {
+      if (idx >= argv_span.size()) {
+        return std::unexpected(
+            ParseError{"--loader-dir-path requires an argument"});
+      }
+      args.loader_dir_path = argv_span[idx];
+      ++idx;
     } else if (arg == "--interpreter") {
       if (idx >= argv_span.size()) {
         return std::unexpected(
