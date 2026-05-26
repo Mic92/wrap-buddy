@@ -138,6 +138,12 @@ static inline intptr_t syscall6(intptr_t n, intptr_t a1, intptr_t a2,
   syscall4(SYS_openat, AT_FDCWD, (intptr_t)(path), flags, 0)
 #define sys_readlink(path, buf, size)                                          \
   syscall4(SYS_readlinkat, AT_FDCWD, (intptr_t)(path), (intptr_t)(buf), size)
+#define sys_openat(dirfd, path, flags, mode)                                   \
+  syscall4(SYS_openat, dirfd, (intptr_t)(path), flags, mode)
+
+/* File open flags */
+#define O_NOFOLLOW 0100000
+#define O_DIRECTORY 040000
 
 /*
  * aarch64 stat structure

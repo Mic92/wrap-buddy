@@ -22,6 +22,7 @@
 #define SYS_munmap 11
 #define SYS_exit 60
 #define SYS_readlink 89
+#define SYS_openat 257
 
 /*
  * x86_64 syscall wrappers
@@ -59,6 +60,17 @@ static inline intptr_t syscall3(intptr_t n, intptr_t a1, intptr_t a2,
   __asm__ volatile("syscall"
                    : "=a"(ret)
                    : "a"(n), "D"(a1), "S"(a2), "d"(a3)
+                   : "rcx", "r11", "memory");
+  return ret;
+}
+
+static inline intptr_t syscall4(intptr_t n, intptr_t a1, intptr_t a2,
+                                intptr_t a3, intptr_t a4) {
+  intptr_t ret;
+  register intptr_t r10 __asm__("r10") = a4;
+  __asm__ volatile("syscall"
+                   : "=a"(ret)
+                   : "a"(n), "D"(a1), "S"(a2), "d"(a3), "r"(r10)
                    : "rcx", "r11", "memory");
   return ret;
 }
@@ -119,6 +131,12 @@ static inline intptr_t syscall6(intptr_t n, intptr_t a1, intptr_t a2,
 #define sys_open(path, flags) syscall2(SYS_open, (intptr_t)(path), flags)
 #define sys_readlink(path, buf, size)                                          \
   syscall3(SYS_readlink, (intptr_t)(path), (intptr_t)(buf), size)
+#define sys_openat(dirfd, path, flags, mode)                                   \
+  syscall4(SYS_openat, dirfd, (intptr_t)(path), flags, mode)
+
+/* File open flags */
+#define O_NOFOLLOW 0400000
+#define O_DIRECTORY 0200000
 
 /*
  * x86_64 stat structure

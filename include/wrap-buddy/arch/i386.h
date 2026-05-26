@@ -23,6 +23,7 @@
 #define SYS_munmap 91
 #define SYS_readlink 85
 #define SYS_fstat64 197
+#define SYS_openat 295
 
 /*
  * i386 syscall wrappers
@@ -145,6 +146,12 @@ static inline intptr_t syscall6(intptr_t n, intptr_t a1, intptr_t a2,
 #define sys_open(path, flags) syscall2(SYS_open, (intptr_t)(path), flags)
 #define sys_readlink(path, buf, size)                                          \
   syscall3(SYS_readlink, (intptr_t)(path), (intptr_t)(buf), size)
+#define sys_openat(dirfd, path, flags, mode)                                   \
+  syscall4(SYS_openat, dirfd, (intptr_t)(path), flags, mode)
+
+/* File open flags */
+#define O_NOFOLLOW 0400000
+#define O_DIRECTORY 0200000
 
 /*
  * sys_lseek - 64-bit lseek for i386 using _llseek

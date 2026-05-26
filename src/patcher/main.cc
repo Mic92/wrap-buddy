@@ -124,7 +124,8 @@ auto run_patcher(const Args &args, const InterpreterInfo &interp_info) -> int {
       .runtime_deps = args.runtime_deps,
       .all_lib_dirs = discovered_lib_dirs,
       .needed = args.needed,
-      .relative_rpath = args.relative_rpath,
+      .relocatable = args.relocatable,
+      .loader_dir_path = args.loader_dir_path,
   };
 
   std::vector<MissingDepsError> all_missing;
@@ -221,16 +222,16 @@ auto main(int argc, char *argv[]) -> int {
     }
 
     const auto &interp_info = *interp_result;
-    std::println("Using interpreter: {}", interp_info.path);
+    std::println("Using interpreter: {}", interp_info.path.string());
 
-    auto stub_64 = get_stub(true);
+    auto stub_64 = get_stub(true, args.relocatable);
     if (!stub_64.empty()) {
       std::println("64-bit stub: {} bytes", stub_64.size());
     } else {
       std::println("64-bit stub: not available");
     }
 
-    auto stub_32 = get_stub(false);
+    auto stub_32 = get_stub(false, args.relocatable);
     if (!stub_32.empty()) {
       std::println("32-bit stub: {} bytes", stub_32.size());
     } else {

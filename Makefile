@@ -10,8 +10,13 @@ PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
 LIBDIR ?= $(PREFIX)/lib/wrap-buddy
 
+# Path placeholder embedded in the stub loader. Rewritten with path relative to loader.bin
+# depending on the location of the patched executable. The default is rather small, since it blows up the stub size.
+# The string is produced with 'echo "placeholder" | b3sum -l 64'
+RELOCATABLE_LOADER_PATH_PLACEHOLDER ?= 880031aabab70d51f1ff08762ad3c457bdaa2bf2687f4e864a33f63889a5ed1b571bebc01e6d248e9e4ac63c86b696712f07a701983375bd95910df9afa9a636
+
 # C++23 flags for wrap-buddy (runs on build machine)
-CXXFLAGS_FOR_BUILD ?= -std=c++23 -Wall -Wextra -O2 -Iinclude
+CXXFLAGS_FOR_BUILD ?= -std=c++23 -Wall -Wextra -O2 -Iinclude -DRELOCATABLE_LOADER_PATH_PLACEHOLDER='"$(RELOCATABLE_LOADER_PATH_PLACEHOLDER)"' -DLIBDIR='"$(LIBDIR)"'
 EXTRA_CXXFLAGS ?=
 
 # Auto-detect target architecture from compiler
@@ -49,14 +54,14 @@ HEADERS = include/wrap-buddy/*.h include/wrap-buddy/arch/*.h src/preamble.ld
 PATCHER_HEADERS = src/patcher/*.h
 
 # Targets
-NATIVE_BINS = loader.bin stub.bin
+NATIVE_BINS = loader.bin stub.bin stub_reloc.bin
 ifdef BUILD_32BIT
   ALL_BINS = $(NATIVE_BINS) loader32.bin stub32.bin
-  STUB_HEADERS = src/patcher/stub_64.h src/patcher/stub_32.h
+  STUB_HEADERS = src/patcher/stub_64.h src/patcher/stub_32.h src/patcher/stub_64_reloc.h src/patcher/stub_32_reloc.h
   STUB_32_DEF = -DHAVE_STUB_32
 else
   ALL_BINS = $(NATIVE_BINS)
-  STUB_HEADERS = src/patcher/stub_64.h
+  STUB_HEADERS = src/patcher/stub_64.h src/patcher/stub_64_reloc.h
   STUB_32_DEF =
 endif
 
@@ -76,11 +81,17 @@ loader.bin: loader.elf
 	$(OBJCOPY) -O binary --only-section=.all $< $@
 
 # Native stub
-STUB_FLAGS = -DLOADER_PATH='"$(LIBDIR)/loader.bin"' -Iinclude
+STUB_FLAGS = -Iinclude
 stub.elf: src/stub/stub.c $(HEADERS)
-	$(CC) $(CFLAGS_NATIVE) $(STUB_FLAGS) -o $@ src/stub/stub.c
+	$(CC) -DRELOCATABLE_MODE=0 $(CFLAGS_NATIVE) $(STUB_FLAGS) -DLOADER_PATH='"$(LIBDIR)/loader.bin"' -o $@ src/stub/stub.c
+
+stub_reloc.elf: src/stub/stub.c $(HEADERS)
+	$(CC) -DRELOCATABLE_MODE=1 $(CFLAGS_NATIVE) $(STUB_FLAGS) -DLOADER_PATH='"$(RELOCATABLE_LOADER_PATH_PLACEHOLDER)"' -o $@ src/stub/stub.c
 
 stub.bin: stub.elf
+	$(OBJCOPY) -O binary --only-section=.all $< $@
+
+stub_reloc.bin: stub_reloc.elf
 	$(OBJCOPY) -O binary --only-section=.all $< $@
 
 # 32-bit loader (x86_64 only)
@@ -92,9 +103,15 @@ loader32.bin: loader32.elf
 
 # 32-bit stub (x86_64 only)
 stub32.elf: src/stub/stub.c $(HEADERS)
-	$(CC) $(CFLAGS_32) -DLOADER_PATH='"$(LIBDIR)/loader32.bin"' -o $@ src/stub/stub.c
+	$(CC) -DRELOCATABLE_MODE=0 $(CFLAGS_32) -DLOADER_PATH='"$(LIBDIR)/loader32.bin"' -o $@ src/stub/stub.c
+
+stub32_reloc.elf: src/stub/stub.c $(HEADERS)
+	$(CC) -DRELOCATABLE_MODE=1 $(CFLAGS_32) -DLOADER_PATH='"$(RELOCATABLE_LOADER_PATH_PLACEHOLDER)"' -o $@ src/stub/stub.c
 
 stub32.bin: stub32.elf
+	$(OBJCOPY) -O binary --only-section=.all $< $@
+
+stub32_reloc.bin: stub32_reloc.elf
 	$(OBJCOPY) -O binary --only-section=.all $< $@
 
 # Generate C headers from stub binaries for embedding
@@ -102,6 +119,12 @@ src/patcher/stub_64.h: stub.bin
 	$(XXD) -i $< > $@
 
 src/patcher/stub_32.h: stub32.bin
+	$(XXD) -i $< > $@
+
+src/patcher/stub_64_reloc.h: stub_reloc.bin
+	$(XXD) -i $< > $@
+
+src/patcher/stub_32_reloc.h: stub32_reloc.bin
 	$(XXD) -i $< > $@
 
 # Built-in interpreter defaults (optional)
@@ -145,7 +168,7 @@ format:
 	find src -name '*.c' -o -name '*.cc' -o -name '*.h' | xargs $(CLANG_FORMAT) -i
 
 clean:
-	rm -f *.elf *.bin src/patcher/stub_64.h src/patcher/stub_32.h wrap-buddy compile_commands.json
+	rm -f *.elf *.bin src/patcher/stub_64.h src/patcher/stub_32.h src/patcher/stub_64_reloc.h src/patcher/stub_32_reloc.h wrap-buddy compile_commands.json
 
 check: wrap-buddy $(ALL_BINS)
 	bash tests/test.sh --interp $(INTERP) --libs $(LIBC_LIB)

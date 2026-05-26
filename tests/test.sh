@@ -78,17 +78,38 @@ echo "$output" | grep -q "NEEDED_LOADED=yes" ||
   fail "injected DT_NEEDED library was not loaded"
 pass "--needed injection"
 
-# --- Test 3: --relative-rpath patching --------------------------------
+# --- Test 3: --relocatable patching -----------------------------------
 
-echo "=== Test: --relative-rpath ==="
+echo "=== Test: --relocatable ==="
 
-compile relative_rpath test_program.c
+compile relocatable test_program.c
 
-"$WRAP_BUDDY" --paths "$TMPDIR/relative_rpath" --interpreter "$INTERP" --libs "$LIBS" --relative-rpath
+"$WRAP_BUDDY" --paths "$TMPDIR/relocatable" --interpreter "$INTERP" --libs "$LIBS" --relocatable
 
-output=$("$TMPDIR/relative_rpath" 2>&1)
+output=$("$TMPDIR/relocatable" 2>&1)
 echo "$output" | grep -q "Hello from patched binary!" ||
   fail "patched binary did not produce expected output"
-pass "--relative-rpath patching"
+pass "--relocatable patching"
+
+# --- Test 4: --relocatable survives binary movement -------------------
+
+echo "=== Test: --relocatable binary movement ==="
+
+mkdir -p "$TMPDIR/staging/bin" "$TMPDIR/staging/lib"
+cp "$SCRIPT_DIR/../loader.bin" "$TMPDIR/staging/lib/"
+
+${CC:-cc} -o "$TMPDIR/staging/bin/movable" "$SCRIPT_DIR/test_program.c" \
+  -Wl,--dynamic-linker="$FHS_INTERP"
+
+"$WRAP_BUDDY" --paths "$TMPDIR/staging/bin" --interpreter "$INTERP" \
+  --libs "$LIBS" --relocatable --loader-dir-path "$TMPDIR/staging/lib"
+
+# Move to a sibling directory so that all relative paths remain valid.
+mv "$TMPDIR/staging" "$TMPDIR/relocated"
+
+output=$("$TMPDIR/relocated/bin/movable" 2>&1)
+echo "$output" | grep -q "Hello from patched binary!" ||
+  fail "patched binary did not work after move"
+pass "--relocatable binary movement"
 
 echo "=== All tests passed ==="
