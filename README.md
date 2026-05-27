@@ -160,6 +160,49 @@ wrap-buddy --paths ./out --interpreter /lib64/ld-linux-x86-64.so.2 \
   --libs ./lib --dry-run
 ```
 
+## Relocatable binaries
+
+With `--relocatable`, wrap-buddy only uses relative paths: the stub finds
+`loader.bin` relative to the binary, the interpreter path is relative, and
+`DT_RUNPATH` uses `$ORIGIN`. Tar up the tree and run it anywhere, as long as
+the layout inside stays the same.
+
+Put the binary, its libraries, the dynamic linker and `loader.bin` into one
+tree:
+
+```
+bundle/
+├── bin/
+│   ├── myapp
+│   └── .myapp.wrapbuddy   # created by wrap-buddy
+└── lib/
+    ├── loader.bin
+    ├── ld-linux-x86-64.so.2
+    └── libfoo.so.1
+```
+
+Patch with `--relocatable` and point `--loader-dir-path` at the directory with
+`loader.bin` (default: compiled-in `LIBDIR`):
+
+```bash
+cp /usr/local/lib/wrap-buddy/loader.bin bundle/lib/
+
+wrap-buddy --paths bundle/bin \
+  --interpreter bundle/lib/ld-linux-x86-64.so.2 \
+  --libs bundle/lib \
+  --relocatable --loader-dir-path bundle/lib
+
+tar czf bundle.tar.gz bundle
+# unpack anywhere on the target system and run bundle/bin/myapp
+```
+
+Caveats:
+
+- Ship `loader.bin` (`loader32.bin` for 32-bit binaries) with the bundle.
+- Don't move or rename files inside the bundle, only the tree as a whole.
+- The relative path from the binary to `loader.bin` can be at most 128
+  characters.
+
 ## Requirements
 
 The binary must have sufficient space at the entry point for the stub (~400 bytes).
