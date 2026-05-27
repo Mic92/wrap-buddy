@@ -11,7 +11,8 @@ wrap-buddy brings NixOS compatibility to binaries that refuse to cooperate.
 
 ## Why wrap-buddy instead of autoPatchelfHook?
 
-autoPatchelfHook rewrites ELF headers (interpreter path, RPATH) which can be
+[autoPatchelfHook](https://nixos.org/manual/nixpkgs/stable/#setup-hook-autopatchelfhook)
+rewrites ELF headers (interpreter path, RPATH) which can be
 error-prone and may break binaries that, have unusual ELF layouts.
 
 wrap-buddy takes a different approach: it patches the entry point to load a stub
