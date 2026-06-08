@@ -204,6 +204,18 @@ Caveats:
 - The relative path from the binary to `loader.bin` can be at most 128
   characters.
 
+### nix bundle
+
+The flake also provides a bundler that turns a Nix package into such a tree:
+executables in `bin/`, the dynamic linker and all runtime libraries in `lib/`,
+patched with `--relocatable`. The result runs on any Linux without `/nix/store`:
+
+```bash
+nix bundle --bundler github:Mic92/wrap-buddy nixpkgs#hello
+tar czhf hello.tar.gz -C hello-bundle .
+# unpack on the target system and run bin/hello
+```
+
 ## Requirements
 
 The binary must have sufficient space at the entry point for the stub (~400 bytes).
