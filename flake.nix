@@ -46,6 +46,7 @@
           packages = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
             default = config.packages.wrapBuddy;
             wrapBuddy = pkgs.callPackage ./nix/package.nix { inherit sources; };
+            wrapBuddy-unwrapped = config.packages.wrapBuddy.wrapBuddy;
           };
 
           checks =
