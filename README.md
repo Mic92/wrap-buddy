@@ -21,6 +21,9 @@ The ELF headers remain mostly untouched (only PT_INTERP → PT_NULL).
 
 Use wrap-buddy when autoPatchelfHook fails or breaks the binary.
 
+For a deep dive on the design, see the blog post:
+[Hijacking ELF entry points for NixOS compatibility, or WTF is wrap-buddy](https://fzakaria.com/2026/06/22/hijacking-elf-entry-points-for-nixos-compatibility-or-wtf-is-wrap-buddy).
+
 ## How it works
 
 wrap-buddy uses a two-stage loader architecture:
