@@ -38,7 +38,7 @@ endif
 # Freestanding flags - no libc, no system headers
 CFLAGS_BASE = -Wall -nostdlib -nostdinc -fPIC -fno-stack-protector \
               -fno-exceptions -fno-unwind-tables \
-              -fno-asynchronous-unwind-tables -fno-builtin -Os -Iinclude
+              -fno-asynchronous-unwind-tables -fno-builtin -Oz -Iinclude
 
 # Linker flags for flat binary output
 LDFLAGS = -Wl,-T,src/preamble.ld -Wl,-e,_start -Wl,-Ttext=0
