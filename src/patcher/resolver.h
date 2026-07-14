@@ -146,9 +146,11 @@ inline auto process_binary(const fs::path &binary_path,
     return PatchResult::Skipped;
   }
 
-  // Skip if already has Nix store interpreter
+  // Skip if already has Nix store interpreter, except in relocatable mode
+  // where Nix-built binaries are bundled for use outside the store.
   auto current_interp = elf.interpreter();
-  if (current_interp && current_interp->starts_with("/nix/store/")) {
+  if (!config.relocatable && current_interp &&
+      current_interp->starts_with("/nix/store/")) {
     return PatchResult::Skipped;
   }
 
