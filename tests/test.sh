@@ -112,4 +112,24 @@ echo "$output" | grep -q "Hello from patched binary!" ||
   fail "patched binary did not work after move"
 pass "--relocatable binary movement"
 
+# --- Test 5: --relocatable patches binaries with target interpreter ---
+# Needed for 'nix bundle': Nix-built binaries already point at the target
+# interpreter but still have to be patched.
+
+echo "=== Test: --relocatable with target interpreter ==="
+
+${CC:-cc} -o "$TMPDIR/nix_built" "$SCRIPT_DIR/test_program.c" \
+  -Wl,--dynamic-linker="$INTERP"
+
+patch_output=$("$WRAP_BUDDY" --paths "$TMPDIR/nix_built" --interpreter "$INTERP" \
+  --libs "$LIBS" --relocatable)
+
+echo "$patch_output" | grep -q "Patching: $TMPDIR/nix_built" ||
+  fail "binary with target interpreter was not patched in relocatable mode"
+
+output=$("$TMPDIR/nix_built" 2>&1)
+echo "$output" | grep -q "Hello from patched binary!" ||
+  fail "patched binary did not produce expected output"
+pass "--relocatable with target interpreter"
+
 echo "=== All tests passed ==="
