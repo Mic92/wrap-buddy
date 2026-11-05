@@ -23,11 +23,20 @@
         inputs.treefmt-nix.flakeModule
       ];
 
+      # 'nix bundle --bundler <this flake> <package>' produces a relocatable bin/ + lib/ tree
+      flake.bundlers = inputs.nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ] (system: rec {
+        default = wrapBuddy;
+        wrapBuddy = inputs.nixpkgs.legacyPackages.${system}.callPackage ./nix/bundler.nix {
+          wrapBuddy = inputs.self.packages.${system}.wrapBuddy.passthru.wrapBuddy;
+        };
+      });
+
       perSystem =
         {
           config,
           pkgs,
           lib,
+          system,
           ...
         }:
         let
@@ -62,6 +71,15 @@
                   test-libcxx = config.packages.wrapBuddy.passthru.tests.test-libcxx;
                   test-no-default-interp-and-libc =
                     config.packages.wrapBuddy.passthru.tests.test-no-default-interp-and-libc;
+                  bundle-hello = pkgs.runCommand "bundle-hello-test" { } ''
+                    # Run from a copied tree to make sure nothing refers to the bundle's store path
+                    cp -r ${inputs.self.bundlers.${system}.default pkgs.hello} tree
+                    chmod -R u+w tree
+                    ./tree/bin/hello | grep -q "Hello, world!"
+                    test -e tree/lib/loader.bin
+                    test -e tree/bin/.hello.wrapbuddy
+                    touch $out
+                  '';
                 }
                 // lib.optionalAttrs pkgs.stdenv.hostPlatform.isx86_64 {
                   test-32bit = pkgs.pkgsi686Linux.callPackage ./nix/package.nix { inherit sources; };
